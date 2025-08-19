@@ -1,1 +1,6 @@
-
+/.import/
+ /.godot/
+ /build/
+ /logs/
+ .DS_Store
+ Thumbs.db
