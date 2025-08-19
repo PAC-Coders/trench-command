@@ -1,6 +1,11 @@
+# Godot caches
+/.godot/
 /.import/
- /.godot/
- /build/
- /logs/
- .DS_Store
- Thumbs.db
+
+# Build artifacts
+/build/
+/logs/
+
+# OS junk
+.DS_Store
+Thumbs.db
