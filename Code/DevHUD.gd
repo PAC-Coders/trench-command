@@ -14,6 +14,7 @@ func _input(event):
 		visible = not visible
 
 func _process(delta: float) -> void:
+	@warning_ignore("narrowing_conversion")
 	var fps: int = Engine.get_frames_per_second()
 	var ms: int = snapped(delta * 1000.0, 0.1)
 	$Panel/Label.text = "FPS: %s | Frame: %sms" % [str(fps), str(ms)]
