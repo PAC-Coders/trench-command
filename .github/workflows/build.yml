@@ -1,5 +1,4 @@
 name: Build (macOS, Godot 4.4.1)
-
 on: [push, pull_request, workflow_dispatch]
 
 env:
@@ -13,25 +12,76 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare folders
+      - name: Ensure folders
         run: |
           mkdir -p Tools
-          mkdir -p "$GODOT_USER_HOME"
+          mkdir -p "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
 
-      - name: Download Godot (editor)
+      - name: Cache Godot editor
+        id: cache-editor
+        uses: actions/cache@v4
+        with:
+          path: Tools
+          key: godot-editor-macos-4.4.1
+
+      - name: Download Godot (editor) with mirrors + retry
+        if: steps.cache-editor.outputs.cache-hit != 'true'
         run: |
-          curl -L "https://downloads.tuxfamily.org/godotengine/4.4.1/Godot_v4.4.1-stable_macos.universal.zip" -o "$RUNNER_TEMP/godot_mac.zip"
-          unzip -q "$RUNNER_TEMP/godot_mac.zip" -d Tools
+          set -euo pipefail
+          BASE="${GODOT_VERSION/-stable/}"  # 4.4.1
+          OUT="$RUNNER_TEMP/godot_mac.zip"
+          URLS=(
+            "https://downloads.tuxfamily.org/godotengine/$BASE/Godot_v${GODOT_VERSION}_macos.universal.zip"
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_macos.universal.zip"
+          )
+          for u in "${URLS[@]}"; do
+            echo "Trying $u"
+            if curl -L -f --retry 5 --retry-all-errors --retry-delay 3 \
+                   --connect-timeout 20 --max-time 600 "$u" -o "$OUT"; then
+              echo "Downloaded from $u"
+              break
+            fi
+          done
+          test -f "$OUT" || { echo "Failed to download Godot editor from all mirrors"; exit 1; }
+          unzip -q "$OUT" -d Tools
           GODOT_APP=$(find Tools -name "Godot*.app" -maxdepth 2 | head -n1)
           if [ -z "$GODOT_APP" ]; then echo "Godot.app not found"; exit 1; fi
           echo "GODOT_BIN=$GODOT_APP/Contents/MacOS/Godot" >> $GITHUB_ENV
           chmod +x "$GODOT_APP/Contents/MacOS/Godot"
 
-      - name: Install export templates
+      - name: Cache export templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.GODOT_USER_HOME }}/templates/${{ env.GODOT_TEMPLATES_DIR }}
+          key: godot-templates-4.4.1
+
+      - name: Install export templates (with mirrors + retry)
+        if: steps.cache-templates.outputs.cache-hit != 'true'
         run: |
-          curl -L "https://downloads.tuxfamily.org/godotengine/4.4.1/Godot_v4.4.1-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
-          mkdir -p "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
-          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
+          set -euo pipefail
+          BASE="${GODOT_VERSION/-stable/}"
+          OUT="$RUNNER_TEMP/templates.tpz"
+          URLS=(
+            "https://downloads.tuxfamily.org/godotengine/$BASE/Godot_v${GODOT_VERSION}_export_templates.tpz"
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          )
+          for u in "${URLS[@]}"; do
+            echo "Trying $u"
+            if curl -L -f --retry 5 --retry-all-errors --retry-delay 3 \
+                   --connect-timeout 20 --max-time 600 "$u" -o "$OUT"; then
+              echo "Downloaded from $u"
+              break
+            fi
+          done
+          test -f "$OUT" || { echo "Failed to download templates from all mirrors"; exit 1; }
+          unzip -q "$OUT" -d "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
+
+      - name: Debug (optional)
+        run: |
+          echo "GODOT_USER_HOME=$GODOT_USER_HOME"
+          "$GODOT_BIN" --headless --version
+          ls -la "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
 
       - name: Build macOS
         env:
@@ -47,8 +97,3 @@ jobs:
             build/TrenchCommand_mac.zip
             build/TrenchCommand_mac.app
           if-no-files-found: ignore
-
-      - name: Debug paths (optional)
-        run: |
-          echo "GODOT_USER_HOME=$GODOT_USER_HOME"
-          ls -la "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
