@@ -8,7 +8,7 @@ on:
 env:
   GODOT_VERSION: "4.4.1-stable"
   GODOT_TEMPLATES_DIR: "4.4.1.stable"
-  GODOT_USER_HOME: ${{ github.workspace }}/.godot_home
+  GODOT_USER_HOME: ${{ github.workspace }}/.godot_home   # стабільний шлях для кешу
 
 jobs:
   macos:
@@ -22,10 +22,10 @@ jobs:
           set -euo pipefail
           mkdir -p Tools
           mkdir -p "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
-          # Дефолтна текa, куди Godot на macOS шукає export templates
           DEFAULT_DIR="$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR"
           mkdir -p "$DEFAULT_DIR"
 
+      # ---------- КЕШ РЕДАКТОРА ----------
       - name: Cache Godot editor
         id: cache-editor
         uses: actions/cache@v4
@@ -57,14 +57,15 @@ jobs:
           echo "GODOT_BIN=$GODOT_APP/Contents/MacOS/Godot" >> $GITHUB_ENV
           chmod +x "$GODOT_APP/Contents/MacOS/Godot"
 
-      - name: Cache export templates (default macOS path)
+      # ---------- КЕШ ШАБЛОНІВ (у власній теці) ----------
+      - name: Cache export templates (custom dir)
         id: cache-templates
         uses: actions/cache@v4
         with:
-          path: "~/Library/Application Support/Godot/export_templates/4.4.1.stable"
-          key: godot-templates-macos-4.4.1
+          path: ${{ env.GODOT_USER_HOME }}/templates/${{ env.GODOT_TEMPLATES_DIR }}
+          key: godot-templates-4.4.1
 
-      - name: Install export templates from GitHub Releases (and fix default path)
+      - name: Install export templates from GitHub Releases (flat unzip of macos.zip)
         if: steps.cache-templates.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
@@ -72,28 +73,23 @@ jobs:
           URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
           echo "Downloading templates: $URL"
           curl -L -f --retry 5 --retry-all-errors --retry-delay 3 \
-               --connect-timeout 20 --max-time 600 "$URL" -o "$OUT"
+               --connect-timeout 20 --max-time 1200 "$URL" -o "$OUT"
 
-          # 1) Розпаковуємо у ваш кастомний каталог (для можливого локального використання/кешу)
-          mkdir -p "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
-          unzip -q "$OUT" -d "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
+          # ПЛОСКО витягаємо рівно файлик templates/macos.zip у нашу кешовану теку:
+          unzip -q -j "$OUT" "templates/macos.zip" -d "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
 
-          # 2) ДУБЛЮЄМО у дефолтний шлях, який Godot очікує на macOS
-          DEFAULT_DIR="$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR"
-          mkdir -p "$DEFAULT_DIR"
-          unzip -q "$OUT" -d "$DEFAULT_DIR"
+          # Перевіряємо наявність macOS-шаблону:
+          test -f "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR/macos.zip" \
+            || { echo "macos.zip not found in GODOT_USER_HOME"; ls -la "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"; exit 1; }
 
-          # Перевіряємо наявність macOS-шаблону в обох місцях (головне — DEFAULT_DIR)
-          test -f "$DEFAULT_DIR/macos.zip" || { echo "macos.zip not found in default editor dir"; exit 1; }
-          test -f "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR/macos.zip" || echo "Warning: macos.zip missing in GODOT_USER_HOME (not critical)"
-
-      - name: Sync templates from default to GODOT_USER_HOME (when restored from cache)
-        if: steps.cache-templates.outputs.cache-hit == 'true'
+      # Симлінк дефолтної editor-текі на нашу кешовану (щоб Godot точно знайшов шаблони)
+      - name: Link default editor dir to cached templates
         run: |
           set -euo pipefail
           DEFAULT_DIR="$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR"
-          mkdir -p "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
-          rsync -a "$DEFAULT_DIR/" "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR/"
+          mkdir -p "$(dirname "$DEFAULT_DIR")"
+          rm -rf "$DEFAULT_DIR"
+          ln -s "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR" "$DEFAULT_DIR"
 
       - name: Debug templates location
         run: |
@@ -102,8 +98,9 @@ jobs:
           echo "GODOT_USER_HOME=$GODOT_USER_HOME"
           echo "Godot version:"
           "$GODOT_BIN" --headless --version
-          echo "Default templates dir listing:"
-          ls -la "$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR"
+          echo "Default templates dir (should be symlink):"
+          ls -la "$HOME/Library/Application Support/Godot/export_templates"
+          ls -la "$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR" || true
           echo "Custom templates dir listing:"
           ls -la "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
 
@@ -134,6 +131,6 @@ jobs:
         run: |
           echo "### Build summary" >> $GITHUB_STEP_SUMMARY
           echo "- Godot: $("${GODOT_BIN}" --headless --version)" >> $GITHUB_STEP_SUMMARY
-          echo "- Default templates: $HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
-          echo "- Custom templates:  $GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
+          echo "- Default templates (symlink): $HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
+          echo "- Custom templates:            $GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
           echo "- Outputs: build/TrenchCommand_mac.zip, build/TrenchCommand_mac.app" >> $GITHUB_STEP_SUMMARY
