@@ -2,14 +2,13 @@ name: Build (macOS, Godot 4.4.1)
 
 on: [push, pull_request]
 
-env:
-  GODOT_VERSION: "4.4.1-stable"
-  GODOT_TEMPLATES_DIR: "4.4.1.stable"
-  GODOT_USER_HOME: ${{ runner.temp }}/godot_home
-
 jobs:
   macos:
     runs-on: macos-latest
+    env:
+      GODOT_VERSION: "4.4.1-stable"
+      GODOT_TEMPLATES_DIR: "4.4.1.stable"
+      GODOT_USER_HOME: ${{ runner.temp }}/godot_home
     steps:
       - uses: actions/checkout@v4
 
