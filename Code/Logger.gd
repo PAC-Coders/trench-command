@@ -16,7 +16,7 @@ func _ready() -> void:
 	if file:
 		log_event("session_start", {"time": Time.get_unix_time_from_system()})
 	else:
-		push_error("Не вдалося відкрити лог-файл: " + log_file_path)
+		push_error("Unable to open log file: " + log_file_path)
 
 
 func _notification(what):
