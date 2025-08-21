@@ -1,0 +1,51 @@
+name: Build (macOS, Godot 4.4.1)
+
+on: [push, pull_request]
+
+env:
+  GODOT_VERSION: "4.4.1-stable"
+  GODOT_TEMPLATES_DIR: "4.4.1.stable"
+  GODOT_USER_HOME: ${{ runner.temp }}/godot_home
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare folders
+        run: |
+          mkdir -p Tools
+          mkdir -p "$GODOT_USER_HOME"
+
+      - name: Download Godot (editor)
+        run: |
+          # Офіційні збірки Godot зазвичай лежать на downloads.tuxfamily.org
+          # Якщо URL зміниться — знайдеш на сторінці релізу Godot 4.4.1.
+          curl -L "https://downloads.tuxfamily.org/godotengine/4.4.1/Godot_v4.4.1-stable_macos.universal.zip" -o "$RUNNER_TEMP/godot_mac.zip"
+          unzip -q "$RUNNER_TEMP/godot_mac.zip" -d Tools
+          GODOT_APP=$(find Tools -name "Godot*.app" -maxdepth 2 | head -n1)
+          if [ -z "$GODOT_APP" ]; then echo "Godot.app not found"; exit 1; fi
+          echo "GODOT_BIN=$GODOT_APP/Contents/MacOS/Godot" >> $GITHUB_ENV
+          chmod +x "$GODOT_APP/Contents/MacOS/Godot"
+
+      - name: Install export templates
+        run: |
+          curl -L "https://downloads.tuxfamily.org/godotengine/4.4.1/Godot_v4.4.1-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          mkdir -p "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
+          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
+
+      - name: Build macOS
+        env:
+          GODOT_BIN: ${{ env.GODOT_BIN }}
+          GODOT_USER_HOME: ${{ env.GODOT_USER_HOME }}
+        run: bash Tools/build_mac.sh
+
+      - name: Upload artifact (macOS)
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrenchCommand-macOS
+          path: |
+            build/TrenchCommand_mac.zip
+            build/TrenchCommand_mac.app
+          if-no-files-found: ignore
