@@ -1,5 +1,9 @@
-name: Build (macOS, Godot 4.4.1)
-on: [push, pull_request, workflow_dispatch]
+name: Build (macOS — Godot 4.4.1)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch: {}
 
 env:
   GODOT_VERSION: "4.4.1-stable"
@@ -9,13 +13,18 @@ env:
 jobs:
   macos:
     runs-on: macos-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Ensure folders
         run: |
+          set -euo pipefail
           mkdir -p Tools
           mkdir -p "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
+          # Дефолтна текa, куди Godot на macOS шукає export templates
+          DEFAULT_DIR="$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR"
+          mkdir -p "$DEFAULT_DIR"
 
       - name: Cache Godot editor
         id: cache-editor
@@ -24,70 +33,93 @@ jobs:
           path: Tools
           key: godot-editor-macos-4.4.1
 
-      - name: Download Godot (editor) with mirrors + retry
+      - name: Download Godot (editor) from GitHub Releases (with retry)
         if: steps.cache-editor.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          BASE="${GODOT_VERSION/-stable/}"  # 4.4.1
           OUT="$RUNNER_TEMP/godot_mac.zip"
-          URLS=(
-            "https://downloads.tuxfamily.org/godotengine/$BASE/Godot_v${GODOT_VERSION}_macos.universal.zip"
-            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_macos.universal.zip"
-          )
-          for u in "${URLS[@]}"; do
-            echo "Trying $u"
-            if curl -L -f --retry 5 --retry-all-errors --retry-delay 3 \
-                   --connect-timeout 20 --max-time 600 "$u" -o "$OUT"; then
-              echo "Downloaded from $u"
-              break
-            fi
-          done
-          test -f "$OUT" || { echo "Failed to download Godot editor from all mirrors"; exit 1; }
+          URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_macos.universal.zip"
+          echo "Downloading editor: $URL"
+          curl -L -f --retry 5 --retry-all-errors --retry-delay 3 \
+               --connect-timeout 20 --max-time 600 "$URL" -o "$OUT"
           unzip -q "$OUT" -d Tools
           GODOT_APP=$(find Tools -name "Godot*.app" -maxdepth 2 | head -n1)
           if [ -z "$GODOT_APP" ]; then echo "Godot.app not found"; exit 1; fi
           echo "GODOT_BIN=$GODOT_APP/Contents/MacOS/Godot" >> $GITHUB_ENV
           chmod +x "$GODOT_APP/Contents/MacOS/Godot"
 
-      - name: Cache export templates
+      - name: Locate Godot (when restored from cache)
+        if: steps.cache-editor.outputs.cache-hit == 'true'
+        run: |
+          set -euo pipefail
+          GODOT_APP=$(find Tools -name "Godot*.app" -maxdepth 2 | head -n1)
+          if [ -z "$GODOT_APP" ]; then echo "Godot.app not found in cache"; exit 1; fi
+          echo "GODOT_BIN=$GODOT_APP/Contents/MacOS/Godot" >> $GITHUB_ENV
+          chmod +x "$GODOT_APP/Contents/MacOS/Godot"
+
+      - name: Cache export templates (default macOS path)
         id: cache-templates
         uses: actions/cache@v4
         with:
-          path: ${{ env.GODOT_USER_HOME }}/templates/${{ env.GODOT_TEMPLATES_DIR }}
-          key: godot-templates-4.4.1
+          path: "~/Library/Application Support/Godot/export_templates/4.4.1.stable"
+          key: godot-templates-macos-4.4.1
 
-      - name: Install export templates (with mirrors + retry)
+      - name: Install export templates from GitHub Releases (and fix default path)
         if: steps.cache-templates.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          BASE="${GODOT_VERSION/-stable/}"
           OUT="$RUNNER_TEMP/templates.tpz"
-          URLS=(
-            "https://downloads.tuxfamily.org/godotengine/$BASE/Godot_v${GODOT_VERSION}_export_templates.tpz"
-            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
-          )
-          for u in "${URLS[@]}"; do
-            echo "Trying $u"
-            if curl -L -f --retry 5 --retry-all-errors --retry-delay 3 \
-                   --connect-timeout 20 --max-time 600 "$u" -o "$OUT"; then
-              echo "Downloaded from $u"
-              break
-            fi
-          done
-          test -f "$OUT" || { echo "Failed to download templates from all mirrors"; exit 1; }
+          URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          echo "Downloading templates: $URL"
+          curl -L -f --retry 5 --retry-all-errors --retry-delay 3 \
+               --connect-timeout 20 --max-time 600 "$URL" -o "$OUT"
+
+          # 1) Розпаковуємо у ваш кастомний каталог (для можливого локального використання/кешу)
+          mkdir -p "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
           unzip -q "$OUT" -d "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
 
-      - name: Debug (optional)
+          # 2) ДУБЛЮЄМО у дефолтний шлях, який Godot очікує на macOS
+          DEFAULT_DIR="$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR"
+          mkdir -p "$DEFAULT_DIR"
+          unzip -q "$OUT" -d "$DEFAULT_DIR"
+
+          # Перевіряємо наявність macOS-шаблону в обох місцях (головне — DEFAULT_DIR)
+          test -f "$DEFAULT_DIR/macos.zip" || { echo "macos.zip not found in default editor dir"; exit 1; }
+          test -f "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR/macos.zip" || echo "Warning: macos.zip missing in GODOT_USER_HOME (not critical)"
+
+      - name: Sync templates from default to GODOT_USER_HOME (when restored from cache)
+        if: steps.cache-templates.outputs.cache-hit == 'true'
         run: |
+          set -euo pipefail
+          DEFAULT_DIR="$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR"
+          mkdir -p "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
+          rsync -a "$DEFAULT_DIR/" "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR/"
+
+      - name: Debug templates location
+        run: |
+          set -euo pipefail
+          echo "HOME=$HOME"
           echo "GODOT_USER_HOME=$GODOT_USER_HOME"
+          echo "Godot version:"
           "$GODOT_BIN" --headless --version
+          echo "Default templates dir listing:"
+          ls -la "$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR"
+          echo "Custom templates dir listing:"
           ls -la "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
 
       - name: Build macOS
         env:
           GODOT_BIN: ${{ env.GODOT_BIN }}
           GODOT_USER_HOME: ${{ env.GODOT_USER_HOME }}
-        run: bash Tools/build_mac.sh
+        run: |
+          set -euo pipefail
+          bash Tools/build_mac.sh
+
+      - name: Verify build outputs
+        run: |
+          set -euo pipefail
+          test -f build/TrenchCommand_mac.zip || { echo "Missing build/TrenchCommand_mac.zip"; exit 1; }
+          unzip -l build/TrenchCommand_mac.zip | head -n 20
 
       - name: Upload artifact (macOS)
         uses: actions/upload-artifact@v4
@@ -97,3 +129,11 @@ jobs:
             build/TrenchCommand_mac.zip
             build/TrenchCommand_mac.app
           if-no-files-found: ignore
+
+      - name: Job summary
+        run: |
+          echo "### Build summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Godot: $("${GODOT_BIN}" --headless --version)" >> $GITHUB_STEP_SUMMARY
+          echo "- Default templates: $HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
+          echo "- Custom templates:  $GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
+          echo "- Outputs: build/TrenchCommand_mac.zip, build/TrenchCommand_mac.app" >> $GITHUB_STEP_SUMMARY
