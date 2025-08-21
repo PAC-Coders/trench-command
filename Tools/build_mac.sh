@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-GODOT="/Applications/Godot.app/Contents/MacOS/Godot"
+
+GODOT="${GODOT_BIN:-"$HOME/Tools/Godot.app/Contents/MacOS/Godot"}"
 EXPORT="macOS"
 
 mkdir -p build
