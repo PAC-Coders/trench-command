@@ -1,14 +1,15 @@
 name: Build (macOS, Godot 4.4.1)
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
+
+env:
+  GODOT_VERSION: "4.4.1-stable"
+  GODOT_TEMPLATES_DIR: "4.4.1.stable"
+  GODOT_USER_HOME: ${{ github.workspace }}/.godot_home   # ✅ без runner.*
 
 jobs:
   macos:
     runs-on: macos-latest
-    env:
-      GODOT_VERSION: "4.4.1-stable"
-      GODOT_TEMPLATES_DIR: "4.4.1.stable"
-      GODOT_USER_HOME: ${{ runner.temp }}/godot_home
     steps:
       - uses: actions/checkout@v4
 
@@ -19,8 +20,6 @@ jobs:
 
       - name: Download Godot (editor)
         run: |
-          # Офіційні збірки Godot зазвичай лежать на downloads.tuxfamily.org
-          # Якщо URL зміниться — знайдеш на сторінці релізу Godot 4.4.1.
           curl -L "https://downloads.tuxfamily.org/godotengine/4.4.1/Godot_v4.4.1-stable_macos.universal.zip" -o "$RUNNER_TEMP/godot_mac.zip"
           unzip -q "$RUNNER_TEMP/godot_mac.zip" -d Tools
           GODOT_APP=$(find Tools -name "Godot*.app" -maxdepth 2 | head -n1)
@@ -48,3 +47,8 @@ jobs:
             build/TrenchCommand_mac.zip
             build/TrenchCommand_mac.app
           if-no-files-found: ignore
+
+      - name: Debug paths (optional)
+        run: |
+          echo "GODOT_USER_HOME=$GODOT_USER_HOME"
+          ls -la "$GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR"
