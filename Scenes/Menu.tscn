@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://bhyqxrudlgw1"]
+[gd_scene load_steps=5 format=3 uid="uid://bhyqxrudlgw1"]
 
 [ext_resource type="Script" uid="uid://bowl2nj1djfm2" path="res://Code/DevHUD.gd" id="1_3kf3n"]
+[ext_resource type="Script" uid="uid://de2awp85q0vim" path="res://UI/menu.gd" id="1_6pedr"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_beu5a"]
 device = -1
@@ -9,13 +10,14 @@ keycode = 4194305
 [sub_resource type="Shortcut" id="Shortcut_3kf3n"]
 events = [SubResource("InputEventKey_beu5a")]
 
-[node name="Control" type="Control"]
+[node name="Menu (Control)" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_6pedr")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 1
