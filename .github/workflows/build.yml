@@ -138,91 +138,91 @@ jobs:
 
 
     # ---------------- WINDOWS ----------------
-    windows:
-      runs-on: windows-latest
+  windows:
+    runs-on: windows-latest
 
-      steps:
-        - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-        - name: Ensure folders
-          run: |
-            New-Item -ItemType Directory -Force -Path Tools | Out-Null
-            New-Item -ItemType Directory -Force -Path $env:GITHUB_WORKSPACE\.godot_home\templates\$env:GODOT_TEMPLATES_DIR | Out-Null
-          shell: pwsh
+      - name: Ensure folders
+        run: |
+          New-Item -ItemType Directory -Force -Path Tools | Out-Null
+          New-Item -ItemType Directory -Force -Path $env:GITHUB_WORKSPACE\.godot_home\templates\$env:GODOT_TEMPLATES_DIR | Out-Null
+        shell: pwsh
 
-        # ---------- КЕШ РЕДАКТОРА ----------
-        - name: Cache Godot editor
-          id: cache-editor
-          uses: actions/cache@v4
-          with:
-            path: Tools
-            key: godot-editor-windows-${{ env.GODOT_VERSION }}
+      # ---------- КЕШ РЕДАКТОРА ----------
+      - name: Cache Godot editor
+        id: cache-editor
+        uses: actions/cache@v4
+        with:
+          path: Tools
+          key: godot-editor-windows-${{ env.GODOT_VERSION }}
 
-        - name: Download Godot (editor) from GitHub Releases (with retry)
-          if: steps.cache-editor.outputs.cache-hit != 'true'
-          shell: pwsh
-          run: |
-            $out = "$env:RUNNER_TEMP\godot_win.zip"
-            $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}/Godot_v${{ env.GODOT_VERSION }}_win64.exe.zip"
-            Write-Host "Downloading editor: $url"
-            Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
-            Expand-Archive -Path $out -DestinationPath Tools -Force
-            $exe = Get-ChildItem Tools -Recurse -Filter "Godot*.exe" | Select-Object -First 1
-            if (-not $exe) { throw "Godot.exe not found" }
-            echo "GODOT_BIN=$($exe.FullName)" >> $env:GITHUB_ENV
+      - name: Download Godot (editor) from GitHub Releases (with retry)
+        if: steps.cache-editor.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $out = "$env:RUNNER_TEMP\godot_win.zip"
+          $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}/Godot_v${{ env.GODOT_VERSION }}_win64.exe.zip"
+          Write-Host "Downloading editor: $url"
+          Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
+          Expand-Archive -Path $out -DestinationPath Tools -Force
+          $exe = Get-ChildItem Tools -Recurse -Filter "Godot*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "Godot.exe not found" }
+          echo "GODOT_BIN=$($exe.FullName)" >> $env:GITHUB_ENV
 
-        - name: Locate Godot (when restored from cache)
-          if: steps.cache-editor.outputs.cache-hit == 'true'
-          shell: pwsh
-          run: |
-            $exe = Get-ChildItem Tools -Recurse -Filter "Godot*.exe" | Select-Object -First 1
-            if (-not $exe) { throw "Godot.exe not found in cache" }
-            echo "GODOT_BIN=$($exe.FullName)" >> $env:GITHUB_ENV
+      - name: Locate Godot (when restored from cache)
+        if: steps.cache-editor.outputs.cache-hit == 'true'
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem Tools -Recurse -Filter "Godot*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "Godot.exe not found in cache" }
+          echo "GODOT_BIN=$($exe.FullName)" >> $env:GITHUB_ENV
 
-        # ---------- КЕШ ШАБЛОНІВ ----------
-        - name: Cache export templates
-          id: cache-templates
-          uses: actions/cache@v4
-          with:
-            path: ${{ env.GODOT_USER_HOME }}/templates/${{ env.GODOT_TEMPLATES_DIR }}
-            key: godot-templates-${{ env.GODOT_VERSION }}
+      # ---------- КЕШ ШАБЛОНІВ ----------
+      - name: Cache export templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.GODOT_USER_HOME }}/templates/${{ env.GODOT_TEMPLATES_DIR }}
+          key: godot-templates-${{ env.GODOT_VERSION }}
 
-        - name: Install export templates (Windows)
-          if: steps.cache-templates.outputs.cache-hit != 'true'
-          shell: pwsh
-          run: |
-            $out = "$env:RUNNER_TEMP\templates.tpz"
-            $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}/Godot_v${{ env.GODOT_VERSION }}_export_templates.tpz"
-            Write-Host "Downloading templates: $url"
-            Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
-            Expand-Archive -Path $out -DestinationPath "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR" -Force
+      - name: Install export templates (Windows)
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $out = "$env:RUNNER_TEMP\templates.tpz"
+          $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}/Godot_v${{ env.GODOT_VERSION }}_export_templates.tpz"
+          Write-Host "Downloading templates: $url"
+          Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
+          Expand-Archive -Path $out -DestinationPath "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR" -Force
 
-        - name: Build Windows
-          env:
-            GODOT_BIN: ${{ env.GODOT_BIN }}
-            GODOT_USER_HOME: ${{ env.GODOT_USER_HOME }}
-          shell: pwsh
-          run: |
-            pwsh Tools/build_win.ps1
+      - name: Build Windows
+        env:
+          GODOT_BIN: ${{ env.GODOT_BIN }}
+          GODOT_USER_HOME: ${{ env.GODOT_USER_HOME }}
+        shell: pwsh
+        run: |
+          pwsh Tools/build_win.ps1
 
-        - name: Verify build outputs
-          shell: pwsh
-          run: |
-            if (-not (Test-Path build/TrenchCommand_win.exe)) { throw "Missing build/TrenchCommand_win.exe" }
-            Get-ChildItem build
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          if (-not (Test-Path build/TrenchCommand_win.exe)) { throw "Missing build/TrenchCommand_win.exe" }
+          Get-ChildItem build
 
-        - name: Upload artifact (Windows)
-          uses: actions/upload-artifact@v4
-          with:
-            name: TrenchCommand-windows
-            path: |
-              build/TrenchCommand_win.exe
-            if-no-files-found: error
+      - name: Upload artifact (Windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrenchCommand-windows
+          path: |
+            build/TrenchCommand_win.exe
+          if-no-files-found: error
 
-        - name: Job summary
-          shell: pwsh
-          run: |
-            echo "### Build summary" >> $env:GITHUB_STEP_SUMMARY
-            echo "- Godot: & '${{ env.GODOT_BIN }}' --headless --version" >> $env:GITHUB_STEP_SUMMARY
-            echo "- Templates: $env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR" >> $env:GITHUB_STEP_SUMMARY
-            echo "- Outputs: build/TrenchCommand_win.exe" >> $env:GITHUB_STEP_SUMMARY
+      - name: Job summary
+        shell: pwsh
+        run: |
+          echo "### Build summary" >> $env:GITHUB_STEP_SUMMARY
+          echo "- Godot: & '${{ env.GODOT_BIN }}' --headless --version" >> $env:GITHUB_STEP_SUMMARY
+          echo "- Templates: $env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR" >> $env:GITHUB_STEP_SUMMARY
+          echo "- Outputs: build/TrenchCommand_win.exe" >> $env:GITHUB_STEP_SUMMARY
