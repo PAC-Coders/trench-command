@@ -186,9 +186,15 @@ jobs:
           if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
           New-Item -ItemType Directory -Force -Path $tmp | Out-Null
           Expand-Archive -Force -Path $out -DestinationPath $tmp
-          $winzip = Join-Path $tmp "templates/windows.zip"
-          if (-not (Test-Path $winzip)) { throw "templates/windows.zip not found in tpz" }
-          Copy-Item $winzip "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR\windows.zip" -Force
+          $win_debug  = Join-Path $tmp "templates/windows_debug_x86_64.zip"
+          $win_release = Join-Path $tmp "templates/windows_release_x86_64.zip"
+
+          if (-not (Test-Path $win_debug)) { throw "$win_debug not found in tpz" }
+          if (-not (Test-Path $win_release)) { throw "$win_release not found in tpz" }
+
+          Copy-Item $win_debug  "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR\windows_debug_x86_64.zip" -Force
+          Copy-Item $win_release "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR\windows_release_x86_64.zip" -Force
+
 
       - name: Build Windows
         shell: pwsh
