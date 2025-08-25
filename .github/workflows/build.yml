@@ -146,7 +146,7 @@ jobs:
 
       - name: Ensure folders
         run: |
-          mkdir Tools
+          mkdir Tools -Force
           mkdir "%GITHUB_WORKSPACE%\.godot_home\templates\%GODOT_TEMPLATES_DIR%"
 
       # ---------- Кэш редактора ----------
