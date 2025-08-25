@@ -175,21 +175,39 @@ jobs:
           path: ${{ env.GODOT_USER_HOME }}/templates/${{ env.GODOT_TEMPLATES_DIR }}
           key: godot-templates-${{ env.GODOT_VERSION }}
 
-      - - name: Install export templates (Windows)
-          shell: pwsh
-          run: |
-            $url = "https://downloads.tuxfamily.org/godotengine/4.4.1/Godot_v4.4.1-stable_export_templates.tpz"
-            $out = "$env:RUNNER_TEMP\templates.tpz"
-            Invoke-WebRequest $url -OutFile $out
-            Expand-Archive $out -DestinationPath "$env:RUNNER_TEMP\godot_tpl"
+      - - - name: Install export templates (Windows)
+            shell: pwsh
+            run: |
+              $url = "https://downloads.tuxfamily.org/godotengine/4.4.1/Godot_v4.4.1-stable_export_templates.tpz"
+              $out = "$env:RUNNER_TEMP\templates.tpz"
+              $tmp = "$env:RUNNER_TEMP\godot_tpl"
 
-            $tpldir = "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR"
-            New-Item -ItemType Directory -Force -Path $tpldir | Out-Null
+              # Завантажуємо .tpz
+              Invoke-WebRequest $url -OutFile $out
 
-            Copy-Item "$env:RUNNER_TEMP\godot_tpl\templates\windows_debug_x86_64.zip" $tpldir -Force
-            Copy-Item "$env:RUNNER_TEMP\godot_tpl\templates\windows_release_x86_64.zip" $tpldir -Force
+              # Чистимо тимчасову теку
+              if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
+              New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
+              # Розпаковуємо .tpz
+              Expand-Archive $out -DestinationPath $tmp
 
+              # Шукаємо Windows-шаблони рекурсивно
+              $win_debug = Get-ChildItem -Path $tmp -Recurse -Filter "windows_debug_x86_64.zip" | Select-Object -First 1
+              $win_release = Get-ChildItem -Path $tmp -Recurse -Filter "windows_release_x86_64.zip" | Select-Object -First 1
+
+              if (-not $win_debug) { throw "windows_debug_x86_64.zip not found in tpz" }
+              if (-not $win_release) { throw "windows_release_x86_64.zip not found in tpz" }
+
+              # Створюємо теку для кешованих шаблонів
+              $tpldir = "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR"
+              New-Item -ItemType Directory -Force -Path $tpldir | Out-Null
+
+              # Копіюємо знайдені файли
+              Copy-Item $win_debug.FullName $tpldir -Force
+              Copy-Item $win_release.FullName $tpldir -Force
+
+              Write-Host "Windows templates copied to $tpldir"
 
       - name: Build Windows
         shell: pwsh
