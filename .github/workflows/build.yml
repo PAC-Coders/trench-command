@@ -187,7 +187,16 @@ jobs:
           $url = "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz"
           Write-Host "Downloading templates: $url"
           Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
-          Expand-Archive -Path $out -DestinationPath "$env:GITHUB_WORKSPACE\.godot_home\templates\$env:GODOT_TEMPLATES_DIR"
+          # Extract only templates/windows_64.zip to the target directory
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($out)
+          foreach ($entry in $zip.Entries) {
+            if ($entry.FullName -eq "templates/windows_64.zip") {
+              $target = "$env:GITHUB_WORKSPACE\.godot_home\templates\$env:GODOT_TEMPLATES_DIR\windows_64.zip"
+              $entry.ExtractToFile($target, $true)
+            }
+          }
+          $zip.Dispose()
           if (-not (Test-Path "$env:GITHUB_WORKSPACE\.godot_home\templates\$env:GODOT_TEMPLATES_DIR\windows_64.zip")) {
               Write-Error "windows_64.zip not found in GODOT_USER_HOME"
               exit 1
