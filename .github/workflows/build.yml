@@ -1,4 +1,4 @@
-name: Build (macOS — Godot 4.4.1)
+name: Build (macOS & Windows — Godot 4.4.1)
 
 on:
   push:
@@ -11,6 +11,7 @@ env:
   GODOT_USER_HOME: ${{ github.workspace }}/.godot_home   # стабільний шлях для кешу
 
 jobs:
+  # ---------------- MACOS ----------------
   macos:
     runs-on: macos-latest
 
@@ -134,3 +135,83 @@ jobs:
           echo "- Default templates (symlink): $HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
           echo "- Custom templates:            $GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
           echo "- Outputs: build/TrenchCommand_mac.zip, build/TrenchCommand_mac.app" >> $GITHUB_STEP_SUMMARY
+
+
+    # ---------------- WINDOWS ----------------
+  windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure folders
+        run: |
+          New-Item -ItemType Directory -Force -Path Tools | Out-Null
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\.godot_home\templates\${{ env.GODOT_TEMPLATES_DIR }}" | Out-Null
+
+      - name: Cache Godot editor
+        id: cache-editor
+        uses: actions/cache@v4
+        with:
+          path: Tools
+          key: godot-editor-windows-4.4.1
+
+      - name: Download Godot (editor) from GitHub Releases
+        if: steps.cache-editor.outputs.cache-hit != 'true'
+        run: |
+          $out = "$env:RUNNER_TEMP\godot_win.zip"
+          $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}/Godot_v${{ env.GODOT_VERSION }}_win64.exe.zip"
+          echo "Downloading editor: $url"
+          curl -L $url -o $out
+          Expand-Archive $out -DestinationPath Tools
+          $godotExe = Get-ChildItem Tools -Recurse -Filter "Godot*.exe" | Select-Object -First 1
+          echo "GODOT_BIN=$($godotExe.FullName)" >> $env:GITHUB_ENV
+
+      - name: Locate Godot (when restored from cache)
+        if: steps.cache-editor.outputs.cache-hit == 'true'
+        run: |
+          $godotExe = Get-ChildItem Tools -Recurse -Filter "Godot*.exe" | Select-Object -First 1
+          echo "GODOT_BIN=$($godotExe.FullName)" >> $env:GITHUB_ENV
+
+      - name: Cache export templates (Windows)
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\.godot_home\templates\${{ env.GODOT_TEMPLATES_DIR }}
+          key: godot-templates-windows-4.4.1
+
+      - name: Install export templates (Windows)
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          $out = "$env:RUNNER_TEMP\templates.tpz"
+          $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}/Godot_v${{ env.GODOT_VERSION }}_export_templates.tpz"
+          echo "Downloading templates: $url"
+          curl -L $url -o $out
+          Expand-Archive $out -DestinationPath "$env:RUNNER_TEMP\templates"
+          
+          $godotTemplates = "$env:APPDATA\Godot\export_templates\${{ env.GODOT_TEMPLATES_DIR }}"
+          New-Item -ItemType Directory -Force -Path $godotTemplates | Out-Null
+          
+          Copy-Item "$env:RUNNER_TEMP\templates\templates\windows_debug_x86_64.exe" $godotTemplates
+          Copy-Item "$env:RUNNER_TEMP\templates\templates\windows_release_x86_64.exe" $godotTemplates
+          
+          echo "Installed templates to: $godotTemplates"
+          Get-ChildItem $godotTemplates
+
+
+      - name: Build Windows
+        run: pwsh Tools/build_win.ps1
+        env:
+          GODOT_BIN: ${{ env.GODOT_BIN }}
+          EXPORT: "Windows Desktop"
+
+      - name: Verify build outputs
+        run: |
+          if (-not (Test-Path build/TrenchCommand_win.exe)) { throw "Missing build/TrenchCommand_win.exe" }
+          Get-Item build/TrenchCommand_win.exe
+
+      - name: Upload artifact (Windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrenchCommand-windows
+          path: build/TrenchCommand_win.exe
