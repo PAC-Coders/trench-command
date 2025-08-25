@@ -197,9 +197,11 @@ jobs:
           name: TrenchCommand-Windows
           path: build/TrenchCommand_win.zip
 
-      - name: Job summary
-        run: |
-          echo "### Build summary" >> $env:GITHUB_STEP_SUMMARY
-          echo "- Godot: $(& '${{ env.GODOT_BIN }}' --headless --version)" >> $env:GITHUB_STEP_SUMMARY
-          echo "- Templates: $env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR" >> $env:GITHUB_STEP_SUMMARY
-          echo "- Outputs: build/TrenchCommand_win.zip" >> $env:GITHUB_STEP_SUMMARY
+      -  name: Job summary
+         shell: pwsh
+         run: |
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Build summary"
+          $godotVersion = & $env:GODOT_BIN --headless --version
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Godot: $godotVersion"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Templates: $env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Outputs: build/TrenchCommand_win.zip"
