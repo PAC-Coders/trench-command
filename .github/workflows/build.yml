@@ -188,7 +188,7 @@ jobs:
           echo "Downloading templates: $url"
           curl -L $url -o $out
           Expand-Archive $out -DestinationPath "$env:RUNNER_TEMP\templates"
-          Copy-Item "$env:RUNNER_TEMP\templates\templates\windows.zip" "${{ github.workspace }}\.godot_home\templates\${{ env.GODOT_TEMPLATES_DIR }}\windows.zip"
+          Copy-Item "$env:RUNNER_TEMP\templates\templates\windows_release_x86_64.exe" "${{ github.workspace }}\.godot_home\templates\${{ env.GODOT_TEMPLATES_DIR }}\windows_release_x86_64.exe"
 
       - name: Build Windows
         run: pwsh Tools/build_win.ps1
