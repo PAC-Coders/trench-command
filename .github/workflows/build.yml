@@ -189,11 +189,11 @@ jobs:
           curl -L $url -o $out
           Expand-Archive $out -DestinationPath "$env:RUNNER_TEMP\templates"
           
-          $godotTemplates = "$env:APPDATA\Godot\export_templates\${{ env.GODOT_VERSION }}.stable"
+          $godotTemplates = "$env:APPDATA\Godot\export_templates\${{ env.GODOT_TEMPLATES_DIR }}"
           New-Item -ItemType Directory -Force -Path $godotTemplates | Out-Null
           
-          Copy-Item "$env:RUNNER_TEMP\templates\templates\windows_debug_x86_64.exe" $godotTemplates
-          Copy-Item "$env:RUNNER_TEMP\templates\templates\windows_release_x86_64.exe" $godotTemplates
+          Copy-Item "$env:RUNNER_TEMP\templates\windows_debug_x86_64.exe" $godotTemplates
+          Copy-Item "$env:RUNNER_TEMP\templates\windows_release_x86_64.exe" $godotTemplates
 
 
       - name: Build Windows
