@@ -137,13 +137,14 @@ jobs:
           echo "- Outputs: build/TrenchCommand_mac.zip, build/TrenchCommand_mac.app" >> $GITHUB_STEP_SUMMARY
 
 
-  # ---------------- WINDOWS ----------------
+    # ---------------- WINDOWS ----------------
   windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-       - name: Ensure folders
+      - name: Ensure folders
+        shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path Tools | Out-Null
           New-Item -ItemType Directory -Force -Path "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR" | Out-Null
@@ -157,13 +158,15 @@ jobs:
 
       - name: Download Godot (editor) if missing
         if: steps.cache-editor.outputs.cache-hit != 'true'
+        shell: pwsh
         run: |
           $out="$env:RUNNER_TEMP\godot_win.zip"
           $url="https://github.com/godotengine/godot/releases/download/${env:GODOT_VERSION}/Godot_v${env:GODOT_VERSION}_win64.exe.zip"
           Invoke-WebRequest -Uri $url -OutFile $out
-          Expand-Archive $out -DestinationPath Tools
-          $exe=Get-ChildItem Tools -Recurse -Filter "Godot*.exe" | Select-Object -First 1
-          echo "GODOT_BIN=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Expand-Archive -Force -Path $out -DestinationPath Tools
+          $exe = Get-ChildItem Tools -Recurse -Filter "Godot*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "Godot exe not found" }
+          "GODOT_BIN=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Cache export templates (Windows)
         id: cache-templates
@@ -174,22 +177,31 @@ jobs:
 
       - name: Install export templates (Windows)
         if: steps.cache-templates.outputs.cache-hit != 'true'
+        shell: pwsh
         run: |
           $out="$env:RUNNER_TEMP\templates.tpz"
+          $tmp="$env:RUNNER_TEMP\godot_tpl"
           $url="https://github.com/godotengine/godot/releases/download/${env:GODOT_VERSION}/Godot_v${env:GODOT_VERSION}_export_templates.tpz"
           Invoke-WebRequest -Uri $url -OutFile $out
-          Expand-Archive $out -DestinationPath "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR"
-          # Важливо: потрібен саме windows.zip
-          if (-Not (Test-Path "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR\windows.zip")) {
-            Write-Error "windows.zip template not found"
-            exit 1
-          }
+          if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
+          New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+          Expand-Archive -Force -Path $out -DestinationPath $tmp
+          $winzip = Join-Path $tmp "templates/windows.zip"
+          if (-not (Test-Path $winzip)) { throw "templates/windows.zip not found in tpz" }
+          Copy-Item $winzip "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR\windows.zip" -Force
 
       - name: Build Windows
-        run: pwsh Tools/build_win.ps1
+        shell: pwsh
         env:
           GODOT_BIN: ${{ env.GODOT_BIN }}
           GODOT_USER_HOME: ${{ env.GODOT_USER_HOME }}
+        run: pwsh Tools/build_win.ps1
+
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "build\TrenchCommand_win.zip")) { throw "Missing build\TrenchCommand_win.zip" }
+          Get-ChildItem build | Format-Table -AutoSize
 
       - name: Upload artifact (Windows)
         uses: actions/upload-artifact@v4
@@ -197,11 +209,12 @@ jobs:
           name: TrenchCommand-Windows
           path: build/TrenchCommand_win.zip
 
-      -  name: Job summary
-         shell: pwsh
-         run: |
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Build summary"
-          $godotVersion = & $env:GODOT_BIN --headless --version
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Godot: $godotVersion"
+      - name: Job summary
+        shell: pwsh
+        run: |
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Build summary (Windows)"
+          $ver = & "$env:GODOT_BIN" --headless --version
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Godot: $ver"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Templates: $env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Outputs: build/TrenchCommand_win.zip"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Outputs: build\TrenchCommand_win.zip"
+
