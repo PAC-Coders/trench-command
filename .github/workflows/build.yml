@@ -143,13 +143,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ensure folders
+       - name: Ensure folders
         run: |
-          echo "### Build summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Godot: $("${GODOT_BIN}" --headless --version)" >> $GITHUB_STEP_SUMMARY
-          echo "- Default templates (symlink): $HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
-          echo "- Custom templates:            $GODOT_USER_HOME/templates/$GODOT_TEMPLATES_DIR" >> $GITHUB_STEP_SUMMARY
-          echo "- Outputs: build/TrenchCommand_mac.zip, build/TrenchCommand_mac.app" >> $GITHUB_STEP_SUMMARY
           New-Item -ItemType Directory -Force -Path Tools | Out-Null
           New-Item -ItemType Directory -Force -Path "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR" | Out-Null
 
@@ -201,3 +196,10 @@ jobs:
         with:
           name: TrenchCommand-Windows
           path: build/TrenchCommand_win.zip
+
+      - name: Job summary
+        run: |
+          echo "### Build summary" >> $env:GITHUB_STEP_SUMMARY
+          echo "- Godot: $(& '${{ env.GODOT_BIN }}' --headless --version)" >> $env:GITHUB_STEP_SUMMARY
+          echo "- Templates: $env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR" >> $env:GITHUB_STEP_SUMMARY
+          echo "- Outputs: build/TrenchCommand_win.zip" >> $env:GITHUB_STEP_SUMMARY
