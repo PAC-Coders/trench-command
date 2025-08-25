@@ -162,7 +162,7 @@ jobs:
         shell: pwsh
         run: |
           $out = "$env:TEMP\godot_win.zip"
-          $url = "https://github.com/godotengine/godot/releases/download/${env:GODOT_VERSION}/Godot_v${env:GODOT_VERSION}_windows.x86_64.zip"
+          $url = "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_win64.exe.zip"
           Write-Host "Downloading editor: $url"
           Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
           Expand-Archive -Path $out -DestinationPath Tools
