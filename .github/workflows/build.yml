@@ -192,12 +192,12 @@ jobs:
           $zip = [System.IO.Compression.ZipFile]::OpenRead($out)
           foreach ($entry in $zip.Entries) {
             if ($entry.FullName -eq "templates/windows_64.zip") {
-              $target = "$env:GITHUB_WORKSPACE\.godot_home\templates\$env:GODOT_TEMPLATES_DIR\windows_64.zip"
+              $target = "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR\windows_64.zip"
               $entry.ExtractToFile($target, $true)
             }
           }
           $zip.Dispose()
-          if (-not (Test-Path "$env:GITHUB_WORKSPACE\.godot_home\templates\$env:GODOT_TEMPLATES_DIR\windows_64.zip")) {
+          if (-not (Test-Path "$env:GODOT_USER_HOME\templates\$env:GODOT_TEMPLATES_DIR\windows_64.zip")) {
               Write-Error "windows_64.zip not found in GODOT_USER_HOME"
               exit 1
           }
