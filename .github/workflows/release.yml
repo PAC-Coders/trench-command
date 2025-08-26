@@ -1,0 +1,156 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # needed for creating/releases with GITHUB_TOKEN
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    env:
+      # ⬅️ Must match your export_presets.cfg preset names
+      EXPORT_NAME_WIN: Windows Desktop
+      EXPORT_NAME_MAC: macOS
+      # ⬅️ Everyone on the team should use this exact minor
+      GODOT_VERSION: "4.4.1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute VERSION from tag
+        id: ver
+        run: |
+          TAG="${GITHUB_REF_NAME}"         # e.g., v0.3.0 or v0.3.0-rc.1
+          VERSION="${TAG#v}"               # strip leading 'v'
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Inject BuildInfo.gd and project version
+        run: |
+          mkdir -p Autoload
+          cat > Autoload/BuildInfo.gd <<'EOF'
+          extends Node
+          const VERSION := "${{ steps.ver.outputs.version }}"
+          const GIT_SHA := "${GITHUB_SHA::7}"
+          EOF
+          if [ -f project.godot ]; then
+            if grep -q '^config/version=' project.godot; then
+              sed -i 's/^config\/version=.*/config\/version="${{ steps.ver.outputs.version }}"/' project.godot
+            else
+              echo 'config/version="${{ steps.ver.outputs.version }}"' >> project.godot
+            fi
+          fi
+
+      - name: Install deps (zip/unzip)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip
+
+      - name: Install Godot headless + export templates
+        run: |
+          set -euo pipefail
+
+          VER="${GODOT_VERSION}"         # e.g., 4.4.1
+          CHANNEL="stable"
+          DEST_DIR="$HOME/.local/share/godot/export_templates/${VER}.stable"
+          mkdir -p "$DEST_DIR"
+
+          GH_BASE="https://github.com/godotengine/godot/releases/download/${VER}-${CHANNEL}"
+          TF_BASE="https://downloads.tuxfamily.org/godotengine/${VER}"
+
+          BIN_ZIP="Godot_v${VER}-${CHANNEL}_linux.x86_64.zip"
+          TPL_TPZ="Godot_v${VER}-${CHANNEL}_export_templates.tpz"
+
+          dl() {
+            local url="$1" out="$2"
+            echo "Downloading: $url"
+            curl --fail --location --retry 5 --retry-delay 5 --retry-all-errors -sS "$url" -o "$out"
+          }
+
+          # Binary (GitHub → TuxFamily)
+          if ! dl "${GH_BASE}/${BIN_ZIP}" godot.zip; then
+            echo "GitHub download failed, trying TuxFamily…"
+            dl "${TF_BASE}/${BIN_ZIP}" godot.zip
+          fi
+          unzip -q godot.zip
+          GODOT_BIN="$(ls -1 Godot_v${VER}-*linux*.x86_64 2>/dev/null | head -n1)"
+          if [ -z "${GODOT_BIN:-}" ]; then
+            echo "Could not locate extracted Godot binary for ${VER}"; ls -la; exit 1
+          fi
+          mv "$GODOT_BIN" godot
+          chmod +x ./godot
+
+          # Templates (GitHub → TuxFamily)
+          if ! dl "${GH_BASE}/${TPL_TPZ}" templates.tpz; then
+            echo "GitHub download failed, trying TuxFamily…"
+            dl "${TF_BASE}/${TPL_TPZ}" templates.tpz
+          fi
+          unzip -q templates.tpz -d "$DEST_DIR"
+
+          # --- FIXUP: flatten 'templates/' subdir and normalize expected names ---
+          if [ -d "$DEST_DIR/templates" ]; then
+            shopt -s nullglob
+            mv "$DEST_DIR/templates/"* "$DEST_DIR/"
+            rmdir "$DEST_DIR/templates"
+            shopt -u nullglob
+          fi
+
+          # Ensure expected filenames exist (Windows release/debug)
+          if [ ! -f "$DEST_DIR/windows_release_x86_64.exe" ]; then
+            CAND="$(ls "$DEST_DIR"/windows*release*64*.exe 2>/dev/null | head -n1 || true)"
+            [ -n "$CAND" ] && cp "$CAND" "$DEST_DIR/windows_release_x86_64.exe"
+          fi
+          if [ ! -f "$DEST_DIR/windows_debug_x86_64.exe" ]; then
+            CAND="$(ls "$DEST_DIR"/windows*debug*64*.exe 2>/dev/null | head -n1 || true)"
+            [ -n "$CAND" ] && cp "$CAND" "$DEST_DIR/windows_debug_x86_64.exe"
+          fi
+
+          # Ensure macOS template name exists for release exports
+          if [ ! -f "$DEST_DIR/macos.zip" ]; then
+            CAND="$(ls "$DEST_DIR"/macos*.zip 2>/dev/null | head -n1 || true)"
+            [ -n "$CAND" ] && cp "$CAND" "$DEST_DIR/macos.zip"
+          fi
+
+          echo "Installed templates:"
+          ls -la "$DEST_DIR"
+
+      - name: Export Windows & macOS
+        run: |
+          set -e
+          mkdir -p build
+          ./godot --headless --path . --export-release "${EXPORT_NAME_WIN}" "build/TrenchCommand.exe"
+          ./godot --headless --path . --export-release "${EXPORT_NAME_MAC}" "build/TrenchCommand_mac.zip" || true
+          if [ ! -f build/TrenchCommand_mac.zip ] && [ -d build/TrenchCommand.app ]; then
+            (cd build && zip -r TrenchCommand_mac.zip TrenchCommand.app)
+          fi
+
+      - name: Package + checksums
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          mkdir -p dist
+          cp "build/TrenchCommand.exe" "dist/TrenchCommand_win_v${VERSION}.exe"
+          cp "build/TrenchCommand_mac.zip" "dist/TrenchCommand_mac_v${VERSION}.zip"
+          (cd dist && sha256sum * > CHECKSUMS.txt)
+
+      - name: Create GitHub Release (via gh)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${{ steps.ver.outputs.version }}"
+          PRERELEASE_FLAG=""
+          case "$TAG" in
+            *-alpha.*|*-beta.*|*-rc.*) PRERELEASE_FLAG="--prerelease" ;;
+          esac
+          # Create the release (idempotent if it already exists)
+          gh release create "$TAG" dist/* \
+            --title "$TAG" $PRERELEASE_FLAG \
+            --notes "Automated release for $VERSION"
