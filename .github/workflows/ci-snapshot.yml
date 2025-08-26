@@ -1,0 +1,87 @@
+name: CI Snapshot Builds
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      BASE_VERSION: 0.3.0  # <-- bump this when you bump minor/patch
+      EXPORT_NAME_WIN: Windows Desktop
+      EXPORT_NAME_MAC: macOS
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute VERSION
+        id: ver
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "version=${BASE_VERSION}-alpha.pr${{ github.event.number }}+${SHORT_SHA}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${BASE_VERSION}-alpha.${{ github.run_number }}+${SHORT_SHA}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Inject BuildInfo.gd and project version
+        run: |
+          mkdir -p Autoload
+          cat > Autoload/BuildInfo.gd <<'EOF'
+          extends Node
+          const VERSION := "${{ steps.ver.outputs.version }}"
+          const GIT_SHA := "${GITHUB_SHA::7}"
+          EOF
+          # also write into project.godot (non-fatal if not present)
+          if [ -f project.godot ]; then
+            grep -q '^config/version=' project.godot && \
+              sed -i 's/^config\/version=.*/config\/version="${{ steps.ver.outputs.version }}"/' project.godot || \
+              echo 'config/version="${{ steps.ver.outputs.version }}"' >> project.godot
+          fi
+
+      # Export Godot (editor+templates download + export both presets).
+      # If you prefer another action, swap this block for it.
+      - name: Export Windows & macOS
+        uses: firebelley/godot-export@v6
+        with:
+          godot-version: '4.4.1'
+          export-templates: true
+          use-godot-mono: false
+          project: '.'
+          path: 'build'
+          export-debug: false
+          # Preset names must match export_presets.cfg
+          presets: |
+            ${{ env.EXPORT_NAME_WIN }}
+            ${{ env.EXPORT_NAME_MAC }}
+
+      - name: Rename outputs
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          mkdir -p dist
+          # Guess typical export output names; adjust if your presets differ.
+          # Windows often exports .exe in build/${PROJECT}.exe; macOS exports a .zip or .app
+          WIN_SRC=$(ls build/*.exe | head -n1)
+          MAC_SRC_ZIP=$(ls build/*.zip 2>/dev/null | head -n1)
+          MAC_SRC_APP=$(ls build/*.app 2>/dev/null | head -n1)
+
+          cp "$WIN_SRC" "dist/TrenchCommand_win_v${VERSION}.exe"
+
+          if [ -n "$MAC_SRC_ZIP" ]; then
+            cp "$MAC_SRC_ZIP" "dist/TrenchCommand_mac_v${VERSION}.zip"
+          elif [ -n "$MAC_SRC_APP" ]; then
+            zip -r "dist/TrenchCommand_mac_v${VERSION}.zip" "$MAC_SRC_APP"
+          else
+            echo "No macOS artifact found!" && exit 1
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrenchCommand_${{ steps.ver.outputs.version }}
+          path: dist/
+          retention-days: 14

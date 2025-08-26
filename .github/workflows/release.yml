@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      EXPORT_NAME_WIN: Windows Desktop
+      EXPORT_NAME_MAC: macOS
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute VERSION from tag
+        id: ver
+        run: |
+          TAG="${GITHUB_REF_NAME}"          # e.g., v0.3.0 or v0.3.0-rc.1
+          VERSION="${TAG#v}"                # strip leading 'v'
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Inject BuildInfo.gd and project version
+        run: |
+          mkdir -p Autoload
+          cat > Autoload/BuildInfo.gd <<'EOF'
+          extends Node
+          const VERSION := "${{ steps.ver.outputs.version }}"
+          const GIT_SHA := "${GITHUB_SHA::7}"
+          EOF
+          if [ -f project.godot ]; then
+            grep -q '^config/version=' project.godot && \
+              sed -i 's/^config\/version=.*/config\/version="${{ steps.ver.outputs.version }}"/' project.godot || \
+              echo 'config/version="${{ steps.ver.outputs.version }}"' >> project.godot
+          fi
+
+      - name: Export Windows & macOS
+        uses: firebelley/godot-export@v6
+        with:
+          godot-version: '4.4.1'
+          export-templates: true
+          use-godot-mono: false
+          project: '.'
+          path: 'build'
+          export-debug: false
+          presets: |
+            ${{ env.EXPORT_NAME_WIN }}
+            ${{ env.EXPORT_NAME_MAC }}
+
+      - name: Package + checksums
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          mkdir -p dist
+          WIN_SRC=$(ls build/*.exe | head -n1)
+          MAC_SRC_ZIP=$(ls build/*.zip 2>/dev/null | head -n1)
+          MAC_SRC_APP=$(ls build/*.app 2>/dev/null | head -n1)
+
+          cp "$WIN_SRC" "dist/TrenchCommand_win_v${VERSION}.exe"
+          if [ -n "$MAC_SRC_ZIP" ]; then
+            cp "$MAC_SRC_ZIP" "dist/TrenchCommand_mac_v${VERSION}.zip"
+          elif [ -n "$MAC_SRC_APP" ]; then
+            zip -r "dist/TrenchCommand_mac_v${VERSION}.zip" "$MAC_SRC_APP"
+          else
+            echo "No macOS artifact found!" && exit 1
+          fi
+
+          (cd dist && sha256sum * > CHECKSUMS.txt)
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc.') || contains(github.ref_name, '-beta.') || contains(github.ref_name, '-alpha.') }}
+          files: |
+            dist/TrenchCommand_win_v${{ steps.ver.outputs.version }}.exe
+            dist/TrenchCommand_mac_v${{ steps.ver.outputs.version }}.zip
+            dist/CHECKSUMS.txt
