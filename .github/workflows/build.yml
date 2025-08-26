@@ -177,7 +177,7 @@ jobs:
         id: cache-templates
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}\.godot_home\templates\${{ env.GODOT_TEMPLATES_DIR }}
+          path: C:/Users/runneradmin/AppData/Roaming/Godot/export_templates/${{ env.GODOT_TEMPLATES_DIR }}
           key: godot-templates-windows-4.4.1
 
       - name: Install export templates (Windows)
