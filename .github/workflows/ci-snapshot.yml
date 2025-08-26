@@ -10,9 +10,13 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      BASE_VERSION: 0.3.0  # <-- bump this when you bump minor/patch
+      # ⬅️ Bump this when you bump minor/patch (used for alpha builds)
+      BASE_VERSION: 0.1.0
+      # ⬅️ Must match your export_presets.cfg preset names
       EXPORT_NAME_WIN: Windows Desktop
       EXPORT_NAME_MAC: macOS
+      # ⬅️ Everyone on the team should use this exact minor
+      GODOT_VERSION: "4.4.1"
 
     steps:
       - name: Checkout
@@ -23,9 +27,9 @@ jobs:
         run: |
           SHORT_SHA="${GITHUB_SHA::7}"
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "version=${BASE_VERSION}-alpha.pr${{ github.event.number }}+${SHORT_SHA}" >> $GITHUB_OUTPUT
+            echo "version=${BASE_VERSION}-alpha.pr${{ github.event.number }}+${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           else
-            echo "version=${BASE_VERSION}-alpha.${{ github.run_number }}+${SHORT_SHA}" >> $GITHUB_OUTPUT
+            echo "version=${BASE_VERSION}-alpha.${{ github.run_number }}+${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Inject BuildInfo.gd and project version
@@ -36,48 +40,50 @@ jobs:
           const VERSION := "${{ steps.ver.outputs.version }}"
           const GIT_SHA := "${GITHUB_SHA::7}"
           EOF
-          # also write into project.godot (non-fatal if not present)
+          # Also set application version in project.godot (best effort)
           if [ -f project.godot ]; then
-            grep -q '^config/version=' project.godot && \
-              sed -i 's/^config\/version=.*/config\/version="${{ steps.ver.outputs.version }}"/' project.godot || \
+            if grep -q '^config/version=' project.godot; then
+              sed -i 's/^config\/version=.*/config\/version="${{ steps.ver.outputs.version }}"/' project.godot
+            else
               echo 'config/version="${{ steps.ver.outputs.version }}"' >> project.godot
+            fi
           fi
 
-      # Export Godot (editor+templates download + export both presets).
-      # If you prefer another action, swap this block for it.
+      - name: Install deps (zip/unzip)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip
+
+      - name: Install Godot headless + export templates
+        run: |
+          set -e
+          BASE_URL="https://downloads.tuxfamily.org/godotengine/${GODOT_VERSION}"
+          curl -sL -o godot.zip "${BASE_URL}/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot
+          chmod +x ./godot
+          curl -sL -o templates.tpz "${BASE_URL}/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          unzip -q templates.tpz -d "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+
       - name: Export Windows & macOS
-        uses: firebelley/godot-export@v5
-        with:
-          godot-version: '4.4.1'
-          export-templates: true
-          use-godot-mono: false
-          project: '.'
-          path: 'build'
-          export-debug: false
-          # Preset names must match export_presets.cfg
-          presets: |
-            ${{ env.EXPORT_NAME_WIN }}
-            ${{ env.EXPORT_NAME_MAC }}
+        run: |
+          set -e
+          mkdir -p build
+          # Export names must match your export_presets.cfg
+          ./godot --headless --path . --export-release "${EXPORT_NAME_WIN}" "build/TrenchCommand.exe"
+          # macOS may export a .zip directly or a .app folder — handle both
+          ./godot --headless --path . --export-release "${EXPORT_NAME_MAC}" "build/TrenchCommand_mac.zip" || true
+          if [ ! -f build/TrenchCommand_mac.zip ] && [ -d build/TrenchCommand.app ]; then
+            (cd build && zip -r TrenchCommand_mac.zip TrenchCommand.app)
+          fi
 
       - name: Rename outputs
         run: |
           VERSION="${{ steps.ver.outputs.version }}"
           mkdir -p dist
-          # Guess typical export output names; adjust if your presets differ.
-          # Windows often exports .exe in build/${PROJECT}.exe; macOS exports a .zip or .app
-          WIN_SRC=$(ls build/*.exe | head -n1)
-          MAC_SRC_ZIP=$(ls build/*.zip 2>/dev/null | head -n1)
-          MAC_SRC_APP=$(ls build/*.app 2>/dev/null | head -n1)
-
-          cp "$WIN_SRC" "dist/TrenchCommand_win_v${VERSION}.exe"
-
-          if [ -n "$MAC_SRC_ZIP" ]; then
-            cp "$MAC_SRC_ZIP" "dist/TrenchCommand_mac_v${VERSION}.zip"
-          elif [ -n "$MAC_SRC_APP" ]; then
-            zip -r "dist/TrenchCommand_mac_v${VERSION}.zip" "$MAC_SRC_APP"
-          else
-            echo "No macOS artifact found!" && exit 1
-          fi
+          cp "build/TrenchCommand.exe" "dist/TrenchCommand_win_v${VERSION}.exe"
+          cp "build/TrenchCommand_mac.zip" "dist/TrenchCommand_mac_v${VERSION}.zip"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
