@@ -46,7 +46,7 @@ jobs:
       # Export Godot (editor+templates download + export both presets).
       # If you prefer another action, swap this block for it.
       - name: Export Windows & macOS
-        uses: firebelley/godot-export@v6
+        uses: firebelley/godot-export@v5
         with:
           godot-version: '4.4.1'
           export-templates: true
