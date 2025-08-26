@@ -59,49 +59,68 @@ jobs:
           set -euo pipefail
 
           VER="${GODOT_VERSION}"         # e.g., 4.4.1
-          CHANNEL="stable"               # using stable builds
+          CHANNEL="stable"
           DEST_DIR="$HOME/.local/share/godot/export_templates/${VER}.stable"
           mkdir -p "$DEST_DIR"
 
-          # URLs (GitHub first, TuxFamily fallback)
           GH_BASE="https://github.com/godotengine/godot/releases/download/${VER}-${CHANNEL}"
           TF_BASE="https://downloads.tuxfamily.org/godotengine/${VER}"
 
           BIN_ZIP="Godot_v${VER}-${CHANNEL}_linux.x86_64.zip"
           TPL_TPZ="Godot_v${VER}-${CHANNEL}_export_templates.tpz"
 
-          # Helper to robustly download with retry
           dl() {
             local url="$1" out="$2"
             echo "Downloading: $url"
             curl --fail --location --retry 5 --retry-delay 5 --retry-all-errors -sS "$url" -o "$out"
           }
 
-          # --- Download editor/headless binary (GitHub → TuxFamily) ---
+          # Binary (GitHub → TuxFamily)
           if ! dl "${GH_BASE}/${BIN_ZIP}" godot.zip; then
-            echo "GitHub download failed, trying TuxFamily mirror…"
+            echo "GitHub download failed, trying TuxFamily…"
             dl "${TF_BASE}/${BIN_ZIP}" godot.zip
           fi
-
           unzip -q godot.zip
-          # Grab the extracted binary regardless of exact filename and move to ./godot
           GODOT_BIN="$(ls -1 Godot_v${VER}-*linux*.x86_64 2>/dev/null | head -n1)"
           if [ -z "${GODOT_BIN:-}" ]; then
-            echo "Could not locate extracted Godot binary for ${VER}. Contents:"
-            ls -la
-            exit 1
+            echo "Could not locate extracted Godot binary for ${VER}"; ls -la; exit 1
           fi
           mv "$GODOT_BIN" godot
           chmod +x ./godot
-          echo "Installed Godot binary: ./godot"
 
-          # --- Download export templates (GitHub → TuxFamily) ---
+          # Templates (GitHub → TuxFamily)
           if ! dl "${GH_BASE}/${TPL_TPZ}" templates.tpz; then
-            echo "GitHub download failed, trying TuxFamily mirror…"
+            echo "GitHub download failed, trying TuxFamily…"
             dl "${TF_BASE}/${TPL_TPZ}" templates.tpz
           fi
           unzip -q templates.tpz -d "$DEST_DIR"
-          echo "Templates installed to: $DEST_DIR"
+
+          # --- FIXUP: flatten 'templates/' subdir and normalize expected names ---
+          if [ -d "$DEST_DIR/templates" ]; then
+            shopt -s nullglob
+            mv "$DEST_DIR/templates/"* "$DEST_DIR/"
+            rmdir "$DEST_DIR/templates"
+            shopt -u nullglob
+          fi
+
+          # Ensure expected filenames exist (Windows release/debug)
+          if [ ! -f "$DEST_DIR/windows_release_x86_64.exe" ]; then
+            CAND="$(ls "$DEST_DIR"/windows*release*64*.exe 2>/dev/null | head -n1 || true)"
+            [ -n "$CAND" ] && cp "$CAND" "$DEST_DIR/windows_release_x86_64.exe"
+          fi
+          if [ ! -f "$DEST_DIR/windows_debug_x86_64.exe" ]; then
+            CAND="$(ls "$DEST_DIR"/windows*debug*64*.exe 2>/dev/null | head -n1 || true)"
+            [ -n "$CAND" ] && cp "$CAND" "$DEST_DIR/windows_debug_x86_64.exe"
+          fi
+
+          # Ensure macOS template name exists for release exports
+          if [ ! -f "$DEST_DIR/macos.zip" ]; then
+            CAND="$(ls "$DEST_DIR"/macos*.zip 2>/dev/null | head -n1 || true)"
+            [ -n "$CAND" ] && cp "$CAND" "$DEST_DIR/macos.zip"
+          fi
+
+          echo "Installed templates:"
+          ls -la "$DEST_DIR"
 
       - name: Export Windows & macOS
         run: |
