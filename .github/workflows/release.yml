@@ -55,15 +55,52 @@ jobs:
 
       - name: Install Godot headless + export templates
         run: |
-          set -e
-          BASE_URL="https://downloads.tuxfamily.org/godotengine/${GODOT_VERSION}"
-          curl -sL -o godot.zip "${BASE_URL}/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          set -euo pipefail
+
+          VER="${GODOT_VERSION}"         # e.g., 4.4.1
+          CHANNEL="stable"               # using stable builds
+          DEST_DIR="$HOME/.local/share/godot/export_templates/${VER}.stable"
+          mkdir -p "$DEST_DIR"
+
+          # URLs (GitHub first, TuxFamily fallback)
+          GH_BASE="https://github.com/godotengine/godot/releases/download/${VER}-${CHANNEL}"
+          TF_BASE="https://downloads.tuxfamily.org/godotengine/${VER}"
+
+          BIN_ZIP="Godot_v${VER}-${CHANNEL}_linux.x86_64.zip"
+          TPL_TPZ="Godot_v${VER}-${CHANNEL}_export_templates.tpz"
+
+          # Helper to robustly download with retry
+          dl() {
+            local url="$1" out="$2"
+            echo "Downloading: $url"
+            curl --fail --location --retry 5 --retry-delay 5 --retry-all-errors -sS "$url" -o "$out"
+          }
+
+          # --- Download editor/headless binary (GitHub → TuxFamily) ---
+          if ! dl "${GH_BASE}/${BIN_ZIP}" godot.zip; then
+            echo "GitHub download failed, trying TuxFamily mirror…"
+            dl "${TF_BASE}/${BIN_ZIP}" godot.zip
+          fi
+
           unzip -q godot.zip
-          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot
+          # Grab the extracted binary regardless of exact filename and move to ./godot
+          GODOT_BIN="$(ls -1 Godot_v${VER}-*linux*.x86_64 2>/dev/null | head -n1)"
+          if [ -z "${GODOT_BIN:-}" ]; then
+            echo "Could not locate extracted Godot binary for ${VER}. Contents:"
+            ls -la
+            exit 1
+          fi
+          mv "$GODOT_BIN" godot
           chmod +x ./godot
-          curl -sL -o templates.tpz "${BASE_URL}/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
-          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
-          unzip -q templates.tpz -d "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          echo "Installed Godot binary: ./godot"
+
+          # --- Download export templates (GitHub → TuxFamily) ---
+          if ! dl "${GH_BASE}/${TPL_TPZ}" templates.tpz; then
+            echo "GitHub download failed, trying TuxFamily mirror…"
+            dl "${TF_BASE}/${TPL_TPZ}" templates.tpz
+          fi
+          unzip -q templates.tpz -d "$DEST_DIR"
+          echo "Templates installed to: $DEST_DIR"
 
       - name: Export Windows & macOS
         run: |
