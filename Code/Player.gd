@@ -18,6 +18,10 @@ func _physics_process(delta):
 	# нормалізуємо вектор, щоб не бігав швидше по діагоналі
 	if direction != Vector2.ZERO:
 		direction = direction.normalized()
-
-	velocity = direction * SPEED
+	
+	if Input.is_action_pressed("ui_sprint"):
+		velocity = direction * SPEED * 2
+	else :
+		velocity = direction * SPEED
+	
 	move_and_slide()
