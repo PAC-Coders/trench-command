@@ -1,8 +1,11 @@
-[gd_scene load_steps=2 format=3 uid="uid://cq0y0fr2wdd4u"]
+[gd_scene load_steps=3 format=3 uid="uid://cq0y0fr2wdd4u"]
 
 [ext_resource type="Script" uid="uid://bowl2nj1djfm2" path="res://Code/DevHUD.gd" id="1_iukft"]
+[ext_resource type="PackedScene" uid="uid://dv4c1c8p3uwwp" path="res://Scenes/Player.tscn" id="2_gl6un"]
 
 [node name="Node2D" type="Node2D"]
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 script = ExtResource("1_iukft")
+
+[node name="Player" parent="." instance=ExtResource("2_gl6un")]
