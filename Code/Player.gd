@@ -21,6 +21,8 @@ func _physics_process(delta):
 	
 	if Input.is_action_pressed("ui_sprint"):
 		velocity = direction * SPEED * 2
+	if Input.is_action_pressed("ui_crouch"):
+		velocity = direction * SPEED / 2
 	else :
 		velocity = direction * SPEED
 	
