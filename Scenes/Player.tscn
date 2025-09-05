@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://dv4c1c8p3uwwp"]
+
+[ext_resource type="Script" uid="uid://ckolv2s7i02nm" path="res://Code/Player.gd" id="1_rpqav"]
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_kyqiw"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gntrk"]
+
+[node name="Player" type="CharacterBody2D"]
+script = ExtResource("1_rpqav")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.1, 0.1)
+texture = SubResource("NoiseTexture2D_kyqiw")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+rotation = 0.785398
+scale = Vector2(3, 3)
+shape = SubResource("RectangleShape2D_gntrk")
