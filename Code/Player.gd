@@ -35,3 +35,10 @@ func _physics_process(delta):
 func _process(_delta):
 	var mouse_pos = get_global_mouse_position()
 	gun.look_at(mouse_pos)
+
+	if Input.is_action_just_pressed("shoot"):
+		var bullet = BulletScene.instantiate()
+		bullet.global_position = muzzle.global_position
+		bullet.direction = (get_global_mouse_position() - muzzle.global_position).normalized()
+		bullet.rotation = bullet.direction.angle()
+		get_tree().current_scene.add_child(bullet)
