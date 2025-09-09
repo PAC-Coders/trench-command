@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://dv4c1c8p3uwwp"]
+[gd_scene load_steps=5 format=3 uid="uid://dv4c1c8p3uwwp"]
 
 [ext_resource type="Script" uid="uid://ckolv2s7i02nm" path="res://Code/Player.gd" id="1_rpqav"]
+[ext_resource type="Texture2D" uid="uid://ccu6vqf2ki3ub" path="res://Assets/gun.png" id="2_fqgva"]
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_kyqiw"]
 
@@ -17,3 +18,8 @@ texture = SubResource("NoiseTexture2D_kyqiw")
 rotation = 0.785398
 scale = Vector2(3, 3)
 shape = SubResource("RectangleShape2D_gntrk")
+
+[node name="Gun" type="Sprite2D" parent="."]
+texture = ExtResource("2_fqgva")
+
+[node name="Muzzle" type="Marker2D" parent="Gun"]
