@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://dv4c1c8p3uwwp" path="res://Scenes/Player.tscn" id="2_gl6un"]
 [ext_resource type="PackedScene" uid="uid://dtcstghkf873q" path="res://Scenes/PauseMenu.tscn" id="3_j5yw3"]
 [ext_resource type="Texture2D" uid="uid://cx7aqwabeukvs" path="res://Assets/crosshair.png" id="4_1l1um"]
-[ext_resource type="Script" path="res://UI/Crosshair.gd" id="5_p6bhj"]
+[ext_resource type="Script" uid="uid://efcd6675a348" path="res://UI/Crosshair.gd" id="5_p6bhj"]
 
 [node name="Game" type="Node2D"]
 
@@ -23,7 +23,8 @@ process_mode = 2
 visible = false
 
 [node name="Crosshair" type="Sprite2D" parent="CanvasLayer"]
-process_mode = 2
+process_mode = 1
+scale = Vector2(0.1, 0.1)
 texture = ExtResource("4_1l1um")
 script = ExtResource("5_p6bhj")
 
