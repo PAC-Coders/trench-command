@@ -2,6 +2,10 @@ extends CharacterBody2D
 
 const SPEED = 200  # швидкість пікселів за секунду
 
+var BulletScene := preload("res://Scenes/Bullet.tscn")
+@onready var gun = $Gun
+@onready var muzzle = $Gun/Muzzle
+
 func _physics_process(delta):
 	var direction = Vector2.ZERO
 	
@@ -27,3 +31,14 @@ func _physics_process(delta):
 		velocity = direction * SPEED
 	
 	move_and_slide()
+
+func _process(_delta):
+	var mouse_pos = get_global_mouse_position()
+	gun.look_at(mouse_pos)
+
+	if Input.is_action_just_pressed("shoot"):
+		var bullet = BulletScene.instantiate()
+		bullet.global_position = muzzle.global_position
+		bullet.direction = (get_global_mouse_position() - muzzle.global_position).normalized()
+		bullet.rotation = bullet.direction.angle()
+		get_tree().current_scene.add_child(bullet)
