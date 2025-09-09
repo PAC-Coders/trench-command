@@ -29,5 +29,6 @@ texture = ExtResource("4_1l1um")
 script = ExtResource("5_p6bhj")
 
 [connection signal="pressed" from="CanvasLayer/PauseMenu/Panel/VBoxContainer/Resume" to="Manager" method="_on_resume_pressed"]
+[connection signal="value_changed" from="CanvasLayer/PauseMenu/Panel/VBoxContainer/SensitivitySlider" to="CanvasLayer/Crosshair" method="set_sensitivity"]
 
 [editable path="CanvasLayer/PauseMenu"]
