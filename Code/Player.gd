@@ -6,6 +6,7 @@ var BulletScene := preload("res://Scenes/Bullet.tscn")
 @onready var gun = $Gun
 @onready var muzzle = $Gun/Muzzle
 @onready var crosshair = get_node("../CanvasLayer/Crosshair")
+var _ctrl_click_prev := false
 
 func _physics_process(delta):
 	var direction = Vector2.ZERO
@@ -37,9 +38,11 @@ func _process(_delta):
 	var mouse_pos = crosshair.global_position
 	gun.look_at(mouse_pos)
 
-	if Input.is_action_just_pressed("shoot"):
+	var ctrl_click := Input.is_action_pressed("ui_crouch") and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+	if Input.is_action_just_pressed("shoot") or (ctrl_click and not _ctrl_click_prev):
 		var bullet = BulletScene.instantiate()
 		bullet.global_position = muzzle.global_position
 		bullet.direction = (crosshair.global_position - muzzle.global_position).normalized()
 		bullet.rotation = bullet.direction.angle()
 		get_tree().current_scene.add_child(bullet)
+	_ctrl_click_prev = ctrl_click
