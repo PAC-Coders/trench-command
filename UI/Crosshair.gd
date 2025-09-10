@@ -14,7 +14,5 @@ func _input(event: InputEvent) -> void:
 		global_position.x = clamp(global_position.x, rect.position.x, rect.position.x + rect.size.x)
 		global_position.y = clamp(global_position.y, rect.position.y, rect.position.y + rect.size.y)
 
-func _process(delta: float) -> void:
-	global_position = get_viewport().get_mouse_position()
 func set_sensitivity(value: float) -> void:
 	sensitivity = value
