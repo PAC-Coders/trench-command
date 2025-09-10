@@ -8,6 +8,14 @@ var BulletScene := preload("res://Scenes/Bullet.tscn")
 @onready var crosshair = get_node("../CanvasLayer/Crosshair")
 var _ctrl_click_prev := false
 
+func _ready():
+	# Remap crouch to Command key on macOS
+	if OS.get_name() == "macOS":
+		InputMap.action_erase_events("ui_crouch")
+		var cmd_event := InputEventKey.new()
+		cmd_event.physical_keycode = Key.KEY_META
+		InputMap.action_add_event("ui_crouch", cmd_event)
+
 func _physics_process(delta):
 	var direction = Vector2.ZERO
 	
@@ -38,11 +46,9 @@ func _process(_delta):
 	var mouse_pos = crosshair.global_position
 	gun.look_at(mouse_pos)
 
-	var ctrl_click := Input.is_action_pressed("ui_crouch") and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
-	if Input.is_action_just_pressed("shoot") or (ctrl_click and not _ctrl_click_prev):
+	if Input.is_action_pressed("ui_crouch") and Input.is_action_just_pressed("shoot"):
 		var bullet = BulletScene.instantiate()
 		bullet.global_position = muzzle.global_position
 		bullet.direction = (crosshair.global_position - muzzle.global_position).normalized()
 		bullet.rotation = bullet.direction.angle()
 		get_tree().current_scene.add_child(bullet)
-	_ctrl_click_prev = ctrl_click
