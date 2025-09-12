@@ -1,0 +1,16 @@
+[gd_scene load_steps=4 format=3 uid="uid://csw3ii8yqgdt7"]
+
+[ext_resource type="Script" uid="uid://czr5g7j7o5yia" path="res://Code/TargetDummy.gd" id="1_mqb0p"]
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_cvo2p"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_0r0c5"]
+
+[node name="TargetDummy" type="StaticBody2D"]
+script = ExtResource("1_mqb0p")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = SubResource("NoiseTexture2D_cvo2p")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_0r0c5")

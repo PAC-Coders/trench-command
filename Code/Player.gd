@@ -6,7 +6,6 @@ var BulletScene := preload("res://Scenes/Bullet.tscn")
 @onready var gun = $Gun
 @onready var muzzle = $Gun/Muzzle
 @onready var crosshair = get_node("../CanvasLayer/Crosshair")
-var _ctrl_click_prev := false
 
 func _ready():
 	# Remap crouch to Command key on macOS
@@ -45,8 +44,7 @@ func _physics_process(delta):
 func _process(_delta):
 	var mouse_pos = crosshair.global_position
 	gun.look_at(mouse_pos)
-
-	if Input.is_action_pressed("ui_crouch") and Input.is_action_just_pressed("shoot"):
+	if Input.is_action_just_pressed("shoot"):
 		var bullet = BulletScene.instantiate()
 		bullet.global_position = muzzle.global_position
 		bullet.direction = (crosshair.global_position - muzzle.global_position).normalized()
