@@ -6,6 +6,8 @@ var BulletScene := preload("res://Scenes/Bullet.tscn")
 @onready var gun = $Gun
 @onready var muzzle = $Gun/Muzzle
 @onready var crosshair = get_node("../CanvasLayer/Crosshair")
+const MAGAZINE_SIZE := 10
+var ammo := MAGAZINE_SIZE
 
 func _ready():
 	# Remap crouch to Command key on macOS
@@ -45,8 +47,12 @@ func _process(_delta):
 	var mouse_pos = crosshair.global_position
 	gun.look_at(mouse_pos)
 	if Input.is_action_just_pressed("shoot"):
-		var bullet = BulletScene.instantiate()
-		bullet.global_position = muzzle.global_position
-		bullet.direction = (crosshair.global_position - muzzle.global_position).normalized()
-		bullet.rotation = bullet.direction.angle()
-		get_tree().current_scene.add_child(bullet)
+		if ammo > 0:
+			var bullet = BulletScene.instantiate()
+			bullet.global_position = muzzle.global_position
+			bullet.direction = (crosshair.global_position - muzzle.global_position).normalized()
+			bullet.rotation = bullet.direction.angle()
+			get_tree().current_scene.add_child(bullet)
+			ammo -= 1
+	if Input.is_action_just_pressed("reload") and ammo < MAGAZINE_SIZE:
+		ammo = MAGAZINE_SIZE
