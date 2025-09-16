@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://cq0y0fr2wdd4u"]
+[gd_scene load_steps=8 format=3 uid="uid://cq0y0fr2wdd4u"]
 
 [ext_resource type="Script" uid="uid://bowl2nj1djfm2" path="res://Code/DevHUD.gd" id="1_iukft"]
 [ext_resource type="Script" uid="uid://d2ybbmowtmojb" path="res://Code/GameManager.gd" id="1_kldst"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://dtcstghkf873q" path="res://Scenes/PauseMenu.tscn" id="3_j5yw3"]
 [ext_resource type="Texture2D" uid="uid://cx7aqwabeukvs" path="res://Assets/crosshair.png" id="4_1l1um"]
 [ext_resource type="Script" uid="uid://efcd6675a348" path="res://UI/Crosshair.gd" id="5_p6bhj"]
+[ext_resource type="Script" uid="uid://dthwca4q5g2hu" path="res://Code/AmmoCounter.gd" id="6_j26lt"]
 
 [node name="Game" type="Node2D"]
 
@@ -27,6 +28,9 @@ process_mode = 1
 scale = Vector2(0.1, 0.1)
 texture = ExtResource("4_1l1um")
 script = ExtResource("5_p6bhj")
+
+[node name="AmmoCounter" type="CanvasLayer" parent="."]
+script = ExtResource("6_j26lt")
 
 [connection signal="pressed" from="CanvasLayer/PauseMenu/Panel/VBoxContainer/Resume" to="Manager" method="_on_resume_pressed"]
 [connection signal="value_changed" from="CanvasLayer/PauseMenu/Panel/VBoxContainer/SensitivitySlider" to="CanvasLayer/Crosshair" method="set_sensitivity"]
