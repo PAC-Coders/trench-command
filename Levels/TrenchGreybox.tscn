@@ -1,0 +1,65 @@
+[gd_scene load_steps=11 format=3 uid="uid://dhnahx8c4dmbg"]
+
+[sub_resource type="Gradient" id="Gradient_ground"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.45, 0.45, 0.45, 1, 0.45, 0.45, 0.45, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture_ground"]
+gradient = SubResource("Gradient_ground")
+width = 32
+height = 32
+
+[sub_resource type="Gradient" id="Gradient_wall"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.25, 0.25, 0.25, 1, 0.25, 0.25, 0.25, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture_wall"]
+gradient = SubResource("Gradient_wall")
+width = 32
+height = 32
+
+[sub_resource type="Gradient" id="Gradient_filler"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.35, 0.35, 0.4, 1, 0.35, 0.35, 0.4, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture_filler"]
+gradient = SubResource("Gradient_filler")
+width = 32
+height = 32
+
+[sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_border"]
+points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_ground"]
+texture = SubResource("GradientTexture_ground")
+texture_region_size = Vector2i(32, 32)
+tiles/0/0/name = "Ground"
+tiles/0/0/texture_origin = Vector2i(0, 0)
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_wall"]
+texture = SubResource("GradientTexture_wall")
+texture_region_size = Vector2i(32, 32)
+tiles/0/0/name = "Trench Border"
+tiles/0/0/texture_origin = Vector2i(0, 0)
+tiles/0/0/shapes/0/shape = SubResource("ConvexPolygonShape2D_border")
+tiles/0/0/shapes/0/shape_transform = Transform2D(1, 0, 0, 1, 0, 0)
+tiles/0/0/shapes/0/one_way = false
+tiles/0/0/shapes/0/one_way_margin = 1.0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_filler"]
+texture = SubResource("GradientTexture_filler")
+texture_region_size = Vector2i(32, 32)
+tiles/0/0/name = "Filler"
+tiles/0/0/texture_origin = Vector2i(0, 0)
+
+[sub_resource type="TileSet" id="TileSet_trench"]
+tile_size = Vector2i(32, 32)
+physics_layers = 1
+sources/0 = SubResource("TileSetAtlasSource_ground")
+sources/1 = SubResource("TileSetAtlasSource_wall")
+sources/2 = SubResource("TileSetAtlasSource_filler")
+
+[node name="TrenchGreybox" type="TileMap"]
+tile_set = SubResource("TileSet_trench")
+layers/0/name = "Ground Layer"
+layers/0/tile_data = PackedInt32Array()
