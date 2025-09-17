@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://cq0y0fr2wdd4u"]
+[gd_scene load_steps=9 format=3 uid="uid://cq0y0fr2wdd4u"]
 
 [ext_resource type="Script" uid="uid://bowl2nj1djfm2" path="res://Code/DevHUD.gd" id="1_iukft"]
 [ext_resource type="Script" uid="uid://d2ybbmowtmojb" path="res://Code/GameManager.gd" id="1_kldst"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://dtcstghkf873q" path="res://Scenes/PauseMenu.tscn" id="3_j5yw3"]
 [ext_resource type="Texture2D" uid="uid://cx7aqwabeukvs" path="res://Assets/crosshair.png" id="4_1l1um"]
 [ext_resource type="Script" uid="uid://efcd6675a348" path="res://UI/Crosshair.gd" id="5_p6bhj"]
+[ext_resource type="PackedScene" uid="uid://dhnahx8c4dmbg" path="res://Levels/TrenchGreybox.tscn" id="7_dv2lw"]
 [ext_resource type="Script" uid="uid://dthwca4q5g2hu" path="res://Code/AmmoCounter.gd" id="6_j26lt"]
 
 [node name="Game" type="Node2D"]
@@ -13,6 +14,8 @@
 [node name="Manager" type="Node" parent="."]
 process_mode = 3
 script = ExtResource("1_kldst")
+
+[node name="Level" parent="." instance=ExtResource("7_dv2lw")]
 
 [node name="Player" parent="." instance=ExtResource("2_gl6un")]
 
